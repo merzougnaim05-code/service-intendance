@@ -276,6 +276,79 @@
   .entry .state.on .dot { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
   .entry .state.off .dot { background: #f87171; box-shadow: 0 0 8px #f87171; }
 
+  /* ─── وضع الإصلاح ─── */
+  .entry.maint {
+    box-shadow:
+      0 0 0 3px rgba(220,38,38,.65),
+      0 20px 25px -5px rgba(0,0,0,.25);
+  }
+  .state.maint {
+    border-color: rgba(248,113,113,.85) !important;
+    background: rgba(127,29,29,.6);
+    color: #fecaca !important;
+  }
+  .state.maint .dot {
+    background: #ef4444;
+    box-shadow: 0 0 9px #ef4444;
+    animation: pulse 1s infinite;
+  }
+
+  /* لوحة وضع الإصلاح */
+  .maint-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(15,23,42,.55);
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+    padding: 1rem;
+  }
+  .maint-overlay.open { display: flex; }
+  .maint-panel {
+    background: #fff; width: 100%; max-width: 480px;
+    border-radius: 1.5rem; border: 1px solid #a7f3d0;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,.35);
+    overflow: hidden;
+  }
+  .maint-head {
+    background: linear-gradient(90deg, #064e3b, #065f46, #134e4a);
+    color: #fff; border-bottom: 3px solid #f59e0b;
+    padding: .9rem 1.25rem;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .maint-head h3 { font-size: 1.05rem; font-weight: 700; }
+  .maint-close {
+    background: rgba(255,255,255,.15); border: 0; color: #fff;
+    width: 28px; height: 28px; border-radius: 50%;
+    cursor: pointer; font-size: 14px; line-height: 1;
+  }
+  .maint-close:hover { background: rgba(255,255,255,.3); }
+  .maint-body { padding: 1rem 1.25rem 1.15rem; display: flex; flex-direction: column; gap: .55rem; }
+  .maint-row {
+    display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+    background: #f8fafc; border: 1px solid #e2e8f0;
+    border-radius: .9rem; padding: .5rem .85rem;
+  }
+  .maint-row .lbl {
+    display: flex; align-items: center; gap: .6rem;
+    font-weight: 700; color: #1e293b; font-size: .95rem;
+  }
+  .maint-row .lbl .ic {
+    width: 30px; height: 30px; border-radius: .6rem;
+    display: grid; place-items: center; color: #fff; flex-shrink: 0;
+  }
+  .maint-row .lbl .ic svg { width: 16px; height: 16px; }
+  .sw { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+  .sw input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 2; }
+  .sw .tr { position: absolute; inset: 0; background: #cbd5e1; border-radius: 999px; transition: background .2s; }
+  .sw .tr::after {
+    content: ''; position: absolute; top: 3px; right: 3px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+    transition: transform .2s;
+  }
+  .sw input:checked + .tr { background: #dc2626; }
+  .sw input:checked + .tr::after { transform: translateX(-20px); }
+  .maint-note { font-size: .75rem; color: #64748b; line-height: 1.8; margin-top: .3rem; }
+
   /* ─── التذييل ─── */
   footer {
     text-align: center; font-size: .75rem; color: #64748b;
@@ -411,6 +484,17 @@
   بوابة التطبيقات المدرسية 2025/2026 — وصول موحّد لخدمات المؤسسة الرقمية
 </footer>
 
+<!-- لوحة وضع الإصلاح (تُفتح بنقرة مزدوجة على كرة العلم) -->
+<div class="maint-overlay" id="maint-overlay">
+  <div class="maint-panel">
+    <div class="maint-head">
+      <h3>🔧 وضع الإصلاح</h3>
+      <button class="maint-close" id="maint-close" title="إغلاق">✕</button>
+    </div>
+    <div class="maint-body" id="maint-body"></div>
+  </div>
+</div>
+
 <script>
 // لإضافة تطبيق جديد مستقبلاً: أضف سطراً واحداً هنا
 const SITES = [
@@ -476,7 +560,7 @@ const svg = (inner) =>
 const arrowLeft = svg('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>');
 
 document.getElementById('entries').innerHTML = SITES.map((s, i) => `
-  <a class="entry ${s.theme}" href="${s.url}" target="_blank" rel="noopener">
+  <a class="entry ${s.theme}" id="entry${i}" href="${s.url}" target="_blank" rel="noopener">
     <span class="state" id="st${i}"><span class="dot"></span><span class="txt">جارٍ الفحص…</span></span>
     <span class="ibox">${svg(s.icon)}</span>
     <span class="name">${s.name}</span>
@@ -505,9 +589,71 @@ SITES.forEach((s, i) => {
   });
   probe(0)
     .catch(() => probe(1500))
-    .then(() => { el.classList.add('on'); el.querySelector('.txt').textContent = 'يعمل الآن'; })
-    .catch(() => { el.classList.add('off'); el.querySelector('.txt').textContent = 'متوقف'; });
+    .then(() => { if (isMaint(s.url)) return; el.classList.add('on'); el.querySelector('.txt').textContent = 'يعمل الآن'; })
+    .catch(() => { if (isMaint(s.url)) return; el.classList.add('off'); el.querySelector('.txt').textContent = 'متوقف'; });
 });
+
+// ===== وضع الإصلاح: شارة «جاري إصلاح التطبيق» تظهر عند العمل على تطبيق وتختفي تمامًا عند الانتهاء =====
+// اللوحة تُفتح بنقرة مزدوجة على كرة العلم في الشريط العلوي، والإعداد محفوظ في هذا المتصفح
+const MAINT_KEY = 'portalMaintenanceV1';
+const getMaint = () => { try { return JSON.parse(localStorage.getItem(MAINT_KEY)) || {}; } catch (e) { return {}; } };
+const isMaint = (url) => !!getMaint()[url];
+
+function setMaint(url, val) {
+  const m = getMaint();
+  if (val) m[url] = true; else delete m[url];
+  try { localStorage.setItem(MAINT_KEY, JSON.stringify(m)); } catch (e) {}
+  applyMaintenance();
+}
+
+function applyMaintenance() {
+  const m = getMaint();
+  SITES.forEach((s, i) => {
+    const card = document.getElementById('entry' + i);
+    const pill = document.getElementById('st' + i);
+    if (!card || !pill) return;
+    const on = !!m[s.url];
+    card.classList.toggle('maint', on);
+    pill.classList.toggle('maint', on);
+    if (on) {
+      pill.querySelector('.txt').textContent = 'جاري إصلاح التطبيق';
+    } else if (!pill.classList.contains('on') && !pill.classList.contains('off')) {
+      pill.querySelector('.txt').textContent = 'جارٍ الفحص…';
+    }
+  });
+}
+
+const THEME_COLORS = { emerald: '#059669', amber: '#d97706', teal: '#0e7490', indigo: '#4f46e5', rose: '#e11d48', violet: '#7c3aed' };
+
+function buildMaintPanel() {
+  const rows = SITES.map((s, i) => `
+    <div class="maint-row">
+      <span class="lbl">
+        <span class="ic" style="background:${THEME_COLORS[s.theme] || '#475569'}">${svg(s.icon)}</span>
+        ${s.name}
+      </span>
+      <label class="sw">
+        <input type="checkbox" ${isMaint(s.url) ? 'checked' : ''} onchange="setMaint('${s.url}', this.checked)">
+        <span class="tr"></span>
+      </label>
+    </div>`).join('');
+  document.getElementById('maint-body').innerHTML = rows + `
+    <p class="maint-note">فعّل المفتاح وأنت تعمل على التطبيق فتظهر على بطاقته شارة «جاري إصلاح التطبيق» بالنقطة الحمراء، وأطفئه بعد الانتهاء فتختفي الملاحظة تمامًا. الإعداد محفوظ في هذا المتصفح، واللوحة تُفتح بنقرة مزدوجة على كرة العلم.</p>`;
+}
+
+const maintOverlay = document.getElementById('maint-overlay');
+function openMaintPanel() { buildMaintPanel(); maintOverlay.classList.add('open'); }
+function closeMaintPanel() { maintOverlay.classList.remove('open'); }
+window.setMaint = setMaint;
+window.openMaintPanel = openMaintPanel;
+document.getElementById('maint-close').addEventListener('click', closeMaintPanel);
+maintOverlay.addEventListener('click', (e) => { if (e.target === maintOverlay) closeMaintPanel(); });
+
+const dzBall = document.querySelector('.dz-ball');
+dzBall.title = 'نقرة مزدوجة: لوحة وضع الإصلاح';
+dzBall.addEventListener('dblclick', openMaintPanel);
+
+applyMaintenance();
 </script>
 </body>
 </html>
