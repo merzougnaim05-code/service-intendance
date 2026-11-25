@@ -614,6 +614,22 @@ document.getElementById('entries').innerHTML = SITES.map((s, i) => `
   </a>
 `).join('');
 
+// روابط البوابات تحمل الرقم الميكانوغرافي فيمرَّر للتطبيق فيُطبَّق تلقائياً دون الزر
+window.syncEntryLinks = function () {
+  var m = '';
+  try { m = (localStorage.getItem('instInfoMecanoV1') || '').trim().toLowerCase(); } catch (e) {}
+  SITES.forEach(function (s, i) {
+    var a = document.getElementById('entry' + i);
+    if (!a) return;
+    try {
+      var u = new URL(s.url);
+      if (m) u.searchParams.set('mecano', m); else u.searchParams.delete('mecano');
+      a.href = u.toString();
+    } catch (e) {}
+  });
+};
+window.syncEntryLinks();
+
 // الإحصاءات تُحسب تلقائياً من المصفوفة
 document.getElementById('apps-count').textContent = SITES.length;
 document.getElementById('stat-online').textContent = SITES.filter(s => s.url.startsWith('https:')).length;
@@ -701,6 +717,6 @@ dzBall.addEventListener('dblclick', openMaintPanel);
 applyMaintenance();
 </script>
 <script src="./contact-widget.js"></script>
-<script src="./info-widget.js"></script>
+<script src="./info-widget.js?v=2"></script>
 </body>
 </html>

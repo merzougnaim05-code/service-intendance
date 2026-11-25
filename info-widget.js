@@ -187,6 +187,7 @@
         setLS(LS_INFO, JSON.stringify(info));
         setLS(LS_MECANO, mecano);
         setLS(LS_UPDATED, j.updatedAt);
+        if (window.syncEntryLinks) window.syncEntryLinks();
         refreshMeta();
         refreshDot();
     refreshStatHint();
@@ -209,6 +210,7 @@
         setLS(LS_MECANO, mecano);
         setLS(LS_UPDATED, j.updatedAt || '');
         refreshMeta();
+        if (window.syncEntryLinks) window.syncEntryLinks();
         refreshDot();
     refreshStatHint();
         say('✓ جُلب سجل المؤسسة (' + (j.info.institution || mecano) + ')', true);
@@ -247,6 +249,7 @@
         setLS(LS_INFO, JSON.stringify(j.info));
         setLS(LS_UPDATED, j.updatedAt || '');
         refreshDot();
+        if (window.syncEntryLinks) window.syncEntryLinks();
     refreshStatHint();
       })
       .catch(function () { /* اختياري */ });
