@@ -114,6 +114,16 @@
     m.textContent = mecano
       ? 'المؤسسة الحالية: ' + mecano + (u ? ' — آخر نشر: ' + fmtWhen(u) : '')
       : 'اضغط لتعبئة الهوية الرسمية ونشرها لكل التطبيقات';
+    refreshHeaderName();
+  }
+
+  /* ترويسة البوابة تعرض اسم المؤسسة من المعطيات (سجل المركز المحفوظ)،
+     لا الاسم القصير المكتوب ثابتًا في الصفحة */
+  function refreshHeaderName() {
+    var el = document.getElementById('portal-inst-name');
+    if (!el) return;
+    var name = String((getInfo().institution || '')).trim();
+    if (name) el.textContent = name;
   }
 
   /* اللوحة */
@@ -241,18 +251,24 @@
 
   /* مزامنة تلقائية عند فتح البوابة:
      - إن كان الرقم الميكانوغرافي محفوظًا: جلب آخر معطيات من المركز وتحديث النسخة المحلية بصمت
-     - وإلا وُجدت مؤسسة واحدة فقط في المركز: تُتبنى آليًا (قبل تسجيل مؤسسات أخرى) */
+     - وإلا: تُتبنى أحدث مؤسسة محفوظة في المركز (حسب تاريخ الحفظ) دون طلب رقم ولا موافقة */
   function autoSync() {
     var mecano = getMecano();
     if (mecano) { syncFromHub(mecano); return; }
     fetch(HUB + '/api/orgs', { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (j) {
-        if (!j.ok || !j.orgs || j.orgs.length !== 1) return;
-        var m = String(j.orgs[0].mecano || '').toLowerCase().replace(/s+/g, '-');
-        if (!/^[a-z0-9._-]{3,32}$/.test(m)) return;
-        setLS(LS_MECANO, m);
-        syncFromHub(m);
+        if (!j.ok || !j.orgs) return;
+        var best = null, bestAt = '';
+        j.orgs.forEach(function (o) {
+          var m = String(o.mecano || '').trim().toLowerCase().replace(/\s+/g, '-');
+          if (!/^[a-z0-9._-]{3,32}$/.test(m)) return;
+          var at = String(o.updatedAt || o._updatedAt || '');
+          if (!best || at > bestAt) { best = m; bestAt = at; }
+        });
+        if (!best) return;
+        setLS(LS_MECANO, best);
+        syncFromHub(best);
       })
       .catch(function () { /* اختياري */ });
   }
