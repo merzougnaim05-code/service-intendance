@@ -91,6 +91,21 @@
     el.addEventListener('click', openPanel);
   }
 
+  /* زر عائم ثانٍ بنفس التسمية — أسفل اليسار بجانب زر الاتصال */
+  function bindFloating() {
+    if (document.getElementById('iih-float-btn')) return;
+    var b = document.createElement('button');
+    b.id = 'iih-float-btn';
+    b.type = 'button';
+    b.title = 'معطيات المؤسسة الرسمية من مركز البوابة';
+    b.textContent = '🏛 معطيات المؤسسة';
+    b.style.cssText = 'position:fixed;bottom:18px;left:92px;z-index:99999;border:2px solid #fbbf24;cursor:pointer;' +
+      'font-family:"IBM Plex Sans Arabic","Cairo",Tahoma,sans-serif;font-weight:800;font-size:12px;padding:.55rem .9rem;border-radius:999px;' +
+      'background:linear-gradient(145deg,#065f46,#047857 55%,#134e4a);color:#fff;box-shadow:0 3px 0 #022c22';
+    b.addEventListener('click', openPanel);
+    document.body.appendChild(b);
+  }
+
   function refreshStatHint() {
     var m = document.getElementById('instInfoStatHint');
     if (!m) return;
@@ -221,8 +236,8 @@
   ov.querySelector('.iih-x').addEventListener('click', function () { ov.classList.remove('open'); });
   ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('open'); });
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindStat);
-  else bindStat();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { bindStat(); bindFloating(); });
+  else { bindStat(); bindFloating(); }
 
   /* مزامنة تلقائية عند فتح البوابة:
      - إن كان الرقم الميكانوغرافي محفوظًا: جلب آخر معطيات من المركز وتحديث النسخة المحلية بصمت
