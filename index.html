@@ -614,16 +614,31 @@ document.getElementById('entries').innerHTML = SITES.map((s, i) => `
   </a>
 `).join('');
 
-// روابط البوابات تحمل الرقم الميكانوغرافي فيمرَّر للتطبيق فيُطبَّق تلقائياً دون الزر
+// روابط البوابات تحمل الرقم الميكانوغرافي ومعطيات المؤسسة نفسها في ذيل الرابط (#inst=...)
+// فيمرَّر للتطبيق فيُطبَّق تلقائياً دون الزر — النقل داخل متصفح المستخدم فقط:
+// جزء # لا يصل إلى أي خادم، والتطبيق يمسحه من شريط العنوان فور حفظه محلياً
 window.syncEntryLinks = function () {
   var m = '';
-  try { m = (localStorage.getItem('instInfoMecanoV1') || '').trim().toLowerCase(); } catch (e) {}
+  var payload = '';
+  try {
+    m = (localStorage.getItem('instInfoMecanoV1') || '').trim().toLowerCase();
+    var raw = localStorage.getItem('instInfoV1');
+    var info = raw ? JSON.parse(raw) : null;
+    if (info && typeof info === 'object' && Object.keys(info).some(function (k) { return String(info[k] || '').trim() !== ''; })) {
+      var data = JSON.stringify({ info: info, updatedAt: localStorage.getItem('instInfoUpdatedAtV1') || '' });
+      var bytes = new TextEncoder().encode(data);
+      var bin = '';
+      bytes.forEach(function (b) { bin += String.fromCharCode(b); });
+      payload = btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+  } catch (e) {}
   SITES.forEach(function (s, i) {
     var a = document.getElementById('entry' + i);
     if (!a) return;
     try {
       var u = new URL(s.url);
       if (m) u.searchParams.set('mecano', m); else u.searchParams.delete('mecano');
+      u.hash = payload ? ('inst=' + payload) : '';
       a.href = u.toString();
     } catch (e) {}
   });
