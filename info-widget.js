@@ -1,13 +1,12 @@
 /* ═══════════ معطيات المؤسسة — زر الشريط العلوي في البوابة ═══════════
    لوحة إدخال الهوية الرسمية للمؤسسة (الولاية، المديرية، الدائرة، البلدية،
    الرقم الميكانوغرافي، رقم الحساب، رمز الآمر بالصرف، السنة الدراسية)
-   — حفظ محلي + رفع/تحميل من مركز service-info-hub بمفتاح الرقم الميكانوغرافي
-   — كل مؤسسة بسجلها الخاص، لا تداخل بين المؤسسات
+   — حفظ محلي فقط في هذا المتصفح (localStorage): لا رفع، لا تحميل، لا مزامنة
+   — كل متصفح/جهاز مستقل بمعطياته، ولا تنتقل المعلومات بين الموظفين أو المؤسسات
    ═══════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
 
-  var HUB = 'https://service-info-hub.merzougnaim05.workers.dev';
   var LS_INFO = 'instInfoV1';
   var LS_MECANO = 'instInfoMecanoV1';
   var LS_UPDATED = 'instInfoUpdatedAtV1';
@@ -97,7 +96,7 @@
     var b = document.createElement('button');
     b.id = 'iih-float-btn';
     b.type = 'button';
-    b.title = 'معطيات المؤسسة الرسمية من مركز البوابة';
+    b.title = 'معطيات المؤسسة الرسمية — محفوظة محلياً في هذا المتصفح فقط';
     b.textContent = '🏛 معطيات المؤسسة';
     b.style.cssText = 'position:fixed;bottom:18px;left:92px;z-index:99999;border:2px solid #fbbf24;cursor:pointer;' +
       'font-family:"IBM Plex Sans Arabic","Cairo",Tahoma,sans-serif;font-weight:800;font-size:12px;padding:.55rem .9rem;border-radius:999px;' +
@@ -112,12 +111,12 @@
     var mecano = getMecano();
     var u = getUpdated();
     m.textContent = mecano
-      ? 'المؤسسة الحالية: ' + mecano + (u ? ' — آخر نشر: ' + fmtWhen(u) : '')
-      : 'اضغط لتعبئة الهوية الرسمية ونشرها لكل التطبيقات';
+      ? 'المؤسسة الحالية: ' + mecano + (u ? ' — آخر حفظ محلي: ' + fmtWhen(u) : '')
+      : 'اضغط لتعبئة الهوية الرسمية — تُحفظ محلياً في هذا المتصفح فقط';
     refreshHeaderName();
   }
 
-  /* ترويسة البوابة تعرض اسم المؤسسة من المعطيات (سجل المركز المحفوظ)،
+  /* ترويسة البوابة تعرض اسم المؤسسة من المعطيات المحفوظة محلياً في هذا المتصفح،
      لا الاسم القصير المكتوب ثابتًا في الصفحة */
   function refreshHeaderName() {
     var el = document.getElementById('portal-inst-name');
@@ -141,10 +140,9 @@
         '</div>';
     }).join('') +
     '</div>' +
-    '<p class="iih-note">اضغط «حفظ ونشر» — تُحفظ المعطيات في هذا المتصفح وتُنشر للمركز بمفتاح <b>الرقم الميكانوغرافي</b> فتظهر في كل أجهزة المؤسسة، وكل مؤسسة بسجلها المنفصل. الرقم الميكانوغرافي إلزامي.</p>' +
+    '<p class="iih-note">اضغط «حفظ» — تُحفظ المعطيات في <b>هذا المتصفح فقط</b> ولا تُرفع إلى أي خادم ولا تظهر في أجهزة أو متصفحات أخرى. كل موظف يحتفظ بنسخته المحلية الخاصة. الرقم الميكانوغرافي يُحفظ محلياً ليُمرَّر للتطبيقات من هذا المتصفح.</p>' +
     '<div class="iih-acts">' +
-    '<button class="iih-save" id="iih-save">💾 حفظ ونشر</button>' +
-    '<button class="iih-dl" id="iih-pull">⬇ تحميل من المركز</button>' +
+    '<button class="iih-save" id="iih-save">💾 حفظ محلياً</button>' +
     '</div>' +
     '<div class="iih-meta" id="iih-meta"></div>' +
     '<div class="iih-msg" id="iih-msg"></div>' +
@@ -165,26 +163,13 @@
     var mecano = getMecano();
     var u = getUpdated();
     meta.textContent = mecano
-      ? 'المؤسسة الحالية: ' + mecano + (u ? ' — آخر مزامنة: ' + fmtWhen(u) : '')
+      ? 'المؤسسة الحالية: ' + mecano + (u ? ' — آخر حفظ محلي: ' + fmtWhen(u) : '')
       : 'لم يُحدَّد الرقم الميكانوغرافي بعد';
   }
   function refreshDot() {
-    // نقطة حمراء إن وُجدت نسخة على المركز أحدث من آخر تطبيق محلي
+    // لا اتصال بأي مركز: النقطة كانت تنبّه لنسخة أحدث على الخادم، ولم يعد هناك خادم
     var dot = document.getElementById('iih-dot');
-    if (!dot) return;
-    var mecano = getMecano();
-    if (!mecano) { var d0 = document.getElementById('iih-dot');
-      if (!d0) return;
-      d0.className = 'iih-dot'; return; }
-    fetch(HUB + '/api/info/' + encodeURIComponent(mecano), { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (j) {
-        if (!j || !j.ok || !j.updatedAt) { dot.className = 'iih-dot'; return; }
-        var mine = getUpdated();
-        if (!mine || new Date(j.updatedAt) > new Date(mine)) dot.className = 'iih-dot on';
-        else { var d1 = document.getElementById('iih-dot'); if (d1) d1.className = 'iih-dot'; }
-      })
-      .catch(function () { dot.className = 'iih-dot'; });
+    if (dot) dot.className = 'iih-dot';
   }
 
   function openPanel() {
@@ -195,53 +180,22 @@
     ov.classList.add('open');
   }
 
-  /* حفظ ونشر تلقائي */
+  /* حفظ محلي فقط — في متصفح هذا الجهاز، دون أي إرسال خارجي */
   ov.querySelector('#iih-save').addEventListener('click', function () {
     var info = collect();
     var mecano = String(info.mecano || '').trim().toLowerCase().replace(/\s+/g, '-');
-    if (!mecano) { say('أدخل الرقم الميكانوغرافي أولًا — هو مفتاح المؤسسة في المركز', false); return; }
-    say('جارٍ الحفظ والنشر…', true);
-    fetch(HUB + '/api/info/' + encodeURIComponent(mecano) + '?by=' + encodeURIComponent('البوابة'), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(info),
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (j) {
-        if (!j.ok) throw new Error(j.error || 'فشل النشر');
-        setLS(LS_INFO, JSON.stringify(info));
-        setLS(LS_MECANO, mecano);
-        setLS(LS_UPDATED, j.updatedAt);
-        if (window.syncEntryLinks) window.syncEntryLinks();
-        refreshMeta();
-        refreshDot();
+    if (!mecano) { say('أدخل الرقم الميكانوغرافي أولًا — يُحفظ محلياً ليُمرَّر للتطبيقات من هذا المتصفح', false); return; }
+    info.mecano = mecano;
+    setLS(LS_INFO, JSON.stringify(info));
+    setLS(LS_MECANO, mecano);
+    setLS(LS_UPDATED, new Date().toISOString());
+    if (window.syncEntryLinks) window.syncEntryLinks();
+    refreshMeta();
+    refreshDot();
     refreshStatHint();
-        say('✓ حُفظت المعطيات ونُشرت — كل أجهزة المؤسسة ستعرضها عند التحميل', true);
-      })
-      .catch(function (e) { say('✗ ' + (e.message || 'تعذّر النشر — تحقق من الأنترنت'), false); });
+    say('✓ حُفظت المعطيات محلياً في هذا المتصفح فقط — لن تظهر في أجهزة أخرى', true);
   });
 
-  /* تحميل من المركز */
-  ov.querySelector('#iih-pull').addEventListener('click', function () {
-    var mecano = String(collect().mecano || getMecano() || '').trim().toLowerCase().replace(/\s+/g, '-');
-    if (!mecano) { say('أدخل الرقم الميكانوغرافي الذي سُجل به المؤسسة في المركز', false); return; }
-    say('جارٍ الجلب…', true);
-    fetch(HUB + '/api/info/' + encodeURIComponent(mecano), { cache: 'no-store' })
-      .then(function (r) { return r.json(); })
-      .then(function (j) {
-        if (!j.ok) throw new Error(j.error || 'فشل الجلب');
-        fill(j.info);
-        setLS(LS_INFO, JSON.stringify(j.info));
-        setLS(LS_MECANO, mecano);
-        setLS(LS_UPDATED, j.updatedAt || '');
-        refreshMeta();
-        if (window.syncEntryLinks) window.syncEntryLinks();
-        refreshDot();
-    refreshStatHint();
-        say('✓ جُلب سجل المؤسسة (' + (j.info.institution || mecano) + ')', true);
-      })
-      .catch(function (e) { say('✗ ' + (e.message || 'تعذّر الجلب'), false); });
-  });
 
   ov.querySelector('.iih-x').addEventListener('click', function () { ov.classList.remove('open'); });
   ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('open'); });
@@ -249,47 +203,9 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { bindStat(); bindFloating(); });
   else { bindStat(); bindFloating(); }
 
-  /* مزامنة تلقائية عند فتح البوابة:
-     - إن كان الرقم الميكانوغرافي محفوظًا: جلب آخر معطيات من المركز وتحديث النسخة المحلية بصمت
-     - وإلا: تُتبنى أحدث مؤسسة محفوظة في المركز (حسب تاريخ الحفظ) دون طلب رقم ولا موافقة */
-  function autoSync() {
-    var mecano = getMecano();
-    if (mecano) { syncFromHub(mecano); return; }
-    fetch(HUB + '/api/orgs', { cache: 'no-store' })
-      .then(function (r) { return r.json(); })
-      .then(function (j) {
-        if (!j.ok || !j.orgs) return;
-        var best = null, bestAt = '';
-        j.orgs.forEach(function (o) {
-          var m = String(o.mecano || '').trim().toLowerCase().replace(/\s+/g, '-');
-          if (!/^[a-z0-9._-]{3,32}$/.test(m)) return;
-          var at = String(o.updatedAt || o._updatedAt || '');
-          if (!best || at > bestAt) { best = m; bestAt = at; }
-        });
-        if (!best) return;
-        setLS(LS_MECANO, best);
-        syncFromHub(best);
-      })
-      .catch(function () { /* اختياري */ });
-  }
-  function syncFromHub(mecano) {
-    fetch(HUB + '/api/info/' + encodeURIComponent(mecano), { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (j) {
-        if (!j || !j.ok || !j.info) return;
-        setLS(LS_INFO, JSON.stringify(j.info));
-        setLS(LS_UPDATED, j.updatedAt || '');
-        refreshDot();
-        if (window.syncEntryLinks) window.syncEntryLinks();
-    refreshStatHint();
-      })
-      .catch(function () { /* اختياري */ });
-  }
+  /* عند فتح البوابة: لا مزامنة ولا جلب خارجي — تُستخدم المعطيات المحفوظة محلياً في هذا المتصفح فقط */
 
   if (getMecano()) refreshDot();
     refreshStatHint();
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', autoSync);
-  else autoSync();
-
   window.InstitutionInfo = { open: openPanel };
 })();
